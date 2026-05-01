@@ -271,6 +271,41 @@ export default function AdminPanel() {
   // ─────────────────────────────────────────────────────────────────────────
   // AUTH GATE
   // ─────────────────────────────────────────────────────────────────────────
+  async function handleLogin() {
+    if (!password.trim()) { setApiError('Enter a password'); return; }
+    setLoading(true);
+    setApiError('');
+    try {
+      // Verify password by making a real API call — if 401, password is wrong
+      const r = await fetch('/api/matches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password, title: '__auth_check__', team1: 'a', team2: 'b', overs: 1 }),
+      });
+      if (r.status === 401) {
+        setApiError('Wrong password');
+        setLoading(false);
+        return;
+      }
+      // Auth succeeded — if a test match was accidentally created, clean it up
+      try {
+        const created = await r.json();
+        if (created?.id && created?.title === '__auth_check__') {
+          await fetch(`/api/matches/${created.id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password }),
+          });
+        }
+      } catch {}
+      setAuthed(true);
+      loadMatches();
+    } catch {
+      setApiError('Network error');
+    }
+    setLoading(false);
+  }
+
   if (!authed) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
@@ -281,20 +316,19 @@ export default function AdminPanel() {
             type="password"
             placeholder="Password"
             value={password}
-            onChange={e => setPassword(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                setAuthed(true);
-                loadMatches();
-              }
-            }}
+            onChange={e => { setPassword(e.target.value); setApiError(''); }}
+            onKeyDown={e => e.key === 'Enter' && handleLogin()}
             className="mb-3"
           />
+          {apiError && (
+            <div className="text-red-400 text-xs font-mono mb-3">{apiError}</div>
+          )}
           <button
-            onClick={() => { setAuthed(true); loadMatches(); }}
-            className="w-full bg-green-700 hover:bg-green-600 text-white font-semibold py-2 rounded-lg"
+            onClick={handleLogin}
+            disabled={loading}
+            className="w-full bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white font-semibold py-2 rounded-lg"
           >
-            Enter
+            {loading ? 'Checking…' : 'Enter'}
           </button>
         </div>
       </div>
