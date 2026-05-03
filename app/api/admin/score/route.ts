@@ -5,6 +5,7 @@ import {
   applyBallEvent,
   computeResult,
   createInnings,
+  replayInningsFromLog,
   type BallEvent,
   type BatsmanScore,
   type BowlerScore,
@@ -35,13 +36,9 @@ export async function POST(req: NextRequest) {
     case 'start_innings': {
       const ci = match.currentInnings;
       const battingTeam = payload.battingTeam;
-      // Derive bowling team from batting team
       const bowlingTeam = battingTeam === match.team1 ? match.team2 : match.team1;
-      // Target is 1st innings score + 1 for the 2nd innings
       const target = ci === 1 ? (match.innings[0]!.runs + 1) : undefined;
 
-      // FIX: pass bowlingTeam so target is stored correctly (was previously being
-      // passed as the 2nd arg which is bowlingTeam, causing target to be lost)
       const innings = createInnings(battingTeam, bowlingTeam, target);
 
       const opener1: BatsmanScore = {
@@ -92,9 +89,6 @@ export async function POST(req: NextRequest) {
         name: payload.name || ('Batter ' + (inn.batsmen.length + 1)),
         runs: 0, balls: 0, fours: 0, sixes: 0,
         isOut: false,
-        // If someone is already on strike (e.g. non-striker retained strike after
-        // an end-of-over wicket), new batter comes in at non-strike end.
-        // Otherwise new batter takes strike as normal.
         onStrike: !inn.batsmen.some(b => b.onStrike && !b.isOut),
       };
       inn.batsmen.push(newBat);
@@ -139,7 +133,84 @@ export async function POST(req: NextRequest) {
           match.status = 'innings_break';
           match.currentInnings = 1;
         } else {
-          // 2nd innings complete — announce result immediately
+          match.status = 'completed';
+          match.result = computeResult(match);
+        }
+      }
+      break;
+    }
+
+    // ── Append extra to last ball (chain: NB+4, 1+W, etc.) ──────────────────
+    case 'append_to_last_ball': {
+      const inn = match.innings[match.currentInnings]!;
+      if (!inn.ballLog.length) {
+        return Response.json({ error: 'No ball to append to' }, { status: 400 });
+      }
+
+      const { appendType, appendRuns } = payload as { appendType: string; appendRuns: number };
+      const lastIdx = inn.ballLog.length - 1;
+      const prev = inn.ballLog[lastIdx];
+
+      // Build combined label
+      let combined = prev;
+      if (appendType === 'runs' && appendRuns > 0) {
+        combined = `${prev}+${appendRuns}`;
+      } else if (appendType === 'wicket') {
+        combined = `${prev}+W`;
+      } else if (appendType === 'wide') {
+        combined = `${prev}+wd`;
+      }
+      inn.ballLog[lastIdx] = combined;
+
+      // Apply the additional stats without advancing ball count
+      const strikerIdx = inn.batsmen.findIndex(b => b.onStrike && !b.isOut);
+      const nonStrikerIdx = inn.batsmen.findIndex(b => !b.onStrike && !b.isOut);
+      const bowler = inn.bowlers[inn.currentBowlerIndex >= 0 ? inn.currentBowlerIndex : 0];
+
+      if (appendType === 'runs' && appendRuns > 0) {
+        inn.runs += appendRuns;
+        if (strikerIdx >= 0) {
+          inn.batsmen[strikerIdx].runs += appendRuns;
+          if (appendRuns === 4) inn.batsmen[strikerIdx].fours += 1;
+          if (appendRuns === 6) inn.batsmen[strikerIdx].sixes += 1;
+        }
+        if (bowler) bowler.runs += appendRuns;
+      } else if (appendType === 'wicket') {
+        if (strikerIdx >= 0) {
+          inn.batsmen[strikerIdx].isOut = true;
+          inn.batsmen[strikerIdx].dismissal = 'Out';
+          inn.batsmen[strikerIdx].onStrike = false;
+        }
+        if (bowler) bowler.wickets += 1;
+        inn.wickets += 1;
+      }
+
+      (match.innings as typeof inn[])[match.currentInnings] = inn;
+      break;
+    }
+
+    // ── Edit a specific ball in the log ─────────────────────────────────────
+    case 'edit_ball': {
+      const inn = match.innings[match.currentInnings]!;
+      const { ballIndex, newLabel } = payload as { ballIndex: number; newLabel: string };
+
+      if (ballIndex < 0 || ballIndex >= inn.ballLog.length) {
+        return Response.json({ error: 'Invalid ball index' }, { status: 400 });
+      }
+
+      const newLog = [...inn.ballLog];
+      newLog[ballIndex] = newLabel;
+
+      // Rebuild innings from the updated log
+      const rebuilt = replayInningsFromLog(inn, newLog, match.overs);
+      (match.innings as typeof inn[])[match.currentInnings] = rebuilt;
+
+      // Re-check completion
+      if (rebuilt.isComplete && match.status === 'live') {
+        if (match.currentInnings === 0) {
+          match.status = 'innings_break';
+          match.currentInnings = 1;
+        } else {
           match.status = 'completed';
           match.result = computeResult(match);
         }
