@@ -1,147 +1,118 @@
 import Link from 'next/link';
 import { getAllMatches } from '@/lib/redis';
-import type { Match } from '@/lib/cricket';
+import type { Match, Innings } from '@/lib/cricket';
 
-export const revalidate = 0;
-
-function StatusBadge({ status }: { status: Match['status'] }) {
-  const map = {
-    upcoming: { label: 'Upcoming', cls: 'bg-gray-700 text-gray-300' },
-    live: { label: '● LIVE', cls: 'bg-green-900 text-green-400 animate-pulse' },
-    innings_break: { label: 'Break', cls: 'bg-amber-900 text-amber-400' },
-    completed: { label: 'Final', cls: 'bg-blue-900 text-blue-400' },
-  };
-  const { label, cls } = map[status];
-  return (
-    <span className={`text-xs font-mono font-semibold px-2 py-0.5 rounded-full ${cls}`}>
-      {label}
-    </span>
-  );
-}
-
-function MatchCard({ match }: { match: Match }) {
-  const raw = Array.isArray(match.innings) ? match.innings : [];
-  const inn1 = (raw[0] != null && typeof raw[0] === 'object') ? raw[0] as NonNullable<typeof match.innings[0]> : undefined;
-  const inn2 = (raw[1] != null && typeof raw[1] === 'object') ? raw[1] as NonNullable<typeof match.innings[1]> : undefined;
-
-  return (
-    <Link href={`/match/${match.id}`}>
-      <div className="group bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-green-700 transition-all duration-200 cursor-pointer">
-        <div className="flex items-start justify-between mb-3">
-          <h2 className="font-display text-xl text-white group-hover:text-green-400 transition-colors">
-            {match.title}
-          </h2>
-          <StatusBadge status={match.status} />
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <div className="text-sm text-gray-400 mb-1">{match.team1}</div>
-            {inn1 && (
-              <div className="font-mono text-lg text-white">
-                {inn1.runs}/{inn1.wickets}
-                <span className="text-xs text-gray-500 ml-1">
-                  ({inn1.overs}.{inn1.balls})
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div className="text-gray-600 font-display text-lg">VS</div>
-
-          <div className="flex-1 text-right">
-            <div className="text-sm text-gray-400 mb-1">{match.team2}</div>
-            {inn2 && (
-              <div className="font-mono text-lg text-white">
-                {inn2.runs}/{inn2.wickets}
-                <span className="text-xs text-gray-500 ml-1">
-                  ({inn2.overs}.{inn2.balls})
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {match.result && (
-          <div className="mt-3 text-sm text-green-400 font-medium border-t border-gray-800 pt-3">
-            {match.result}
-          </div>
-        )}
-
-        <div className="mt-3 text-xs text-gray-600 font-mono">
-          {match.overs} overs · {new Date(match.createdAt).toLocaleDateString()}
-        </div>
-      </div>
-    </Link>
-  );
+function statusBadge(status: Match['status']) {
+  switch (status) {
+    case 'live': return <span className="flex items-center gap-1.5 text-xs font-mono px-2 py-0.5 rounded-full bg-green-900/60 text-green-400 border border-green-800"><span className="live-dot w-1.5 h-1.5 bg-green-400 rounded-full inline-block"></span>LIVE</span>;
+    case 'completed': return <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-blue-900/60 text-blue-300 border border-blue-800">✓ Done</span>;
+    case 'innings_break': return <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-amber-900/60 text-amber-300 border border-amber-800">Break</span>;
+    default: return <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-gray-800 text-gray-500 border border-gray-700">Upcoming</span>;
+  }
 }
 
 export default async function HomePage() {
-  const matches = await getAllMatches();
+  let matches: Match[] = [];
+  try { matches = await getAllMatches(); } catch {}
 
-  const live = matches.filter(m => m.status === 'live' || m.status === 'innings_break');
-  const upcoming = matches.filter(m => m.status === 'upcoming');
-  const completed = matches.filter(m => m.status === 'completed');
+  const live = matches.filter(m => m.status === 'live');
+  const rest = matches.filter(m => m.status !== 'live');
+
+  function getScoreLine(m: Match) {
+    const rawInnings = Array.isArray(m.innings) ? m.innings : [];
+    const inn0 = (rawInnings[0] != null && typeof rawInnings[0] === 'object') ? rawInnings[0] as Innings : null;
+    const inn1 = (rawInnings[1] != null && typeof rawInnings[1] === 'object') ? rawInnings[1] as Innings : null;
+    if (!inn0) return null;
+    const p0 = `${inn0.battingTeam}: ${inn0.runs}/${inn0.wickets} (${inn0.overs}.${inn0.balls})`;
+    const p1 = inn1 ? ` | ${inn1.battingTeam}: ${inn1.runs}/${inn1.wickets} (${inn1.overs}.${inn1.balls})` : '';
+    return p0 + p1;
+  }
 
   return (
     <div className="min-h-screen bg-gray-950">
-      {/* Header */}
-      <header className="border-b border-gray-800 bg-gray-950/80 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">🏏</span>
-            <h1 className="font-display text-3xl text-white tracking-wide">CRICKET LIVE</h1>
-          </div>
+      {/* Hero header */}
+      <div className="border-b border-gray-800 bg-gradient-to-br from-gray-950 via-gray-900 to-green-950/30">
+        <div className="max-w-3xl mx-auto px-4 py-10 text-center relative">
+          {/* Admin link — top right corner */}
           <Link
             href="/admin"
-            className="text-xs font-mono text-gray-500 hover:text-gray-300 transition-colors px-3 py-1.5 border border-gray-800 rounded-lg hover:border-gray-600"
+            className="absolute top-4 right-4 text-xs text-gray-700 hover:text-gray-400 font-mono transition-colors"
           >
-            Admin →
+            admin
           </Link>
+          <div className="text-5xl mb-3">🏏</div>
+          <h1 className="font-display text-5xl text-white mb-2 tracking-wide">CRICBOARD</h1>
+          <p className="text-gray-500 font-mono text-sm">Live Cricket Scores</p>
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-5xl mx-auto px-4 py-8">
+      <main className="max-w-3xl mx-auto px-4 py-8">
         {matches.length === 0 ? (
-          <div className="text-center py-24">
-            <div className="text-6xl mb-6">🏏</div>
-            <h2 className="font-display text-4xl text-gray-600 mb-2">NO MATCHES YET</h2>
-            <p className="text-gray-600 text-sm mb-6">Create a match from the admin panel to get started.</p>
-            <Link
-              href="/admin"
-              className="inline-block bg-green-700 hover:bg-green-600 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
-            >
-              Go to Admin →
-            </Link>
+          <div className="text-center py-20">
+            <div className="text-6xl mb-4">🏟️</div>
+            <div className="text-gray-600 font-mono">No matches yet. Check back soon!</div>
           </div>
         ) : (
           <>
+            {/* Live matches */}
             {live.length > 0 && (
-              <section className="mb-10">
-                <h2 className="font-display text-2xl text-green-400 mb-4 flex items-center gap-2">
-                  <span className="live-dot inline-block w-2 h-2 bg-green-400 rounded-full"></span>
-                  LIVE NOW
+              <section className="mb-8">
+                <h2 className="text-xs font-mono uppercase tracking-widest text-green-500 mb-3 flex items-center gap-2">
+                  <span className="live-dot w-1.5 h-1.5 bg-green-400 rounded-full inline-block"></span>
+                  Live Now
                 </h2>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {live.map(m => <MatchCard key={m.id} match={m} />)}
+                <div className="space-y-3">
+                  {live.map(m => {
+                    const scoreLine = getScoreLine(m);
+                    return (
+                      <Link key={m.id} href={`/match/${m.id}`}
+                        className="block bg-gradient-to-br from-gray-900 to-green-950/20 border border-green-800/50 rounded-2xl p-5 hover:border-green-700 transition-all group">
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                          <div>
+                            <div className="font-display text-xl text-white group-hover:text-green-300 transition-colors">
+                              {m.team1} vs {m.team2}
+                            </div>
+                            <div className="text-gray-600 text-xs font-mono">{m.overs} overs</div>
+                          </div>
+                          {statusBadge(m.status)}
+                        </div>
+                        {scoreLine && (
+                          <div className="text-green-400 font-mono text-sm mt-2 bg-black/20 rounded-xl px-3 py-2">
+                            {scoreLine}
+                          </div>
+                        )}
+                        <div className="text-xs text-gray-700 font-mono mt-2 group-hover:text-gray-500 transition-colors">
+                          Tap to watch live →
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
               </section>
             )}
 
-            {upcoming.length > 0 && (
-              <section className="mb-10">
-                <h2 className="font-display text-2xl text-amber-400 mb-4">UPCOMING</h2>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {upcoming.map(m => <MatchCard key={m.id} match={m} />)}
-                </div>
-              </section>
-            )}
-
-            {completed.length > 0 && (
-              <section className="mb-10">
-                <h2 className="font-display text-2xl text-gray-500 mb-4">COMPLETED</h2>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {completed.map(m => <MatchCard key={m.id} match={m} />)}
+            {/* Other matches */}
+            {rest.length > 0 && (
+              <section>
+                <h2 className="text-xs font-mono uppercase tracking-widest text-gray-600 mb-3">All Matches</h2>
+                <div className="space-y-2">
+                  {rest.map(m => {
+                    const scoreLine = getScoreLine(m);
+                    return (
+                      <Link key={m.id} href={`/match/${m.id}`}
+                        className="flex items-center justify-between gap-3 bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 hover:border-gray-700 hover:bg-gray-800/50 transition-all group">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-white text-sm truncate group-hover:text-gray-200">{m.title}</div>
+                          {scoreLine && <div className="text-gray-500 text-xs font-mono truncate mt-0.5">{scoreLine}</div>}
+                          {m.result && <div className="text-blue-400 text-xs font-mono mt-0.5">{m.result}</div>}
+                        </div>
+                        <div className="shrink-0 flex items-center gap-2">
+                          {statusBadge(m.status)}
+                          <span className="text-gray-700 group-hover:text-gray-500 transition-colors">→</span>
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
               </section>
             )}
