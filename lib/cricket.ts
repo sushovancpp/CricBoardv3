@@ -36,11 +36,7 @@ export interface Innings {
   batsmen: BatsmanScore[];
   bowlers: BowlerScore[];
   currentBowlerIndex: number;
-<<<<<<< HEAD
-  ballLog: string[];
-=======
   ballLog: string[];   // display labels per ball e.g. "NB+4", "1+W"
->>>>>>> d5fff15 (feat: chain button, edit mode, ball history, scorecard UI overhaul)
   isComplete: boolean;
   target?: number;
 }
@@ -124,10 +120,6 @@ export function applyBallEvent(
       bowler.runs += r;
       inn.ballLog.push(r === 0 ? '•' : String(r));
 
-<<<<<<< HEAD
-      // Strike rotation on odd runs
-=======
->>>>>>> d5fff15 (feat: chain button, edit mode, ball history, scorecard UI overhaul)
       if (r % 2 !== 0 && nonStrikerIdx !== -1) {
         inn.batsmen[strikerIdx].onStrike = false;
         inn.batsmen[nonStrikerIdx].onStrike = true;
@@ -136,28 +128,16 @@ export function applyBallEvent(
       inn.balls += 1;
       bowler.balls += 1;
 
-<<<<<<< HEAD
-      // End of over
-=======
->>>>>>> d5fff15 (feat: chain button, edit mode, ball history, scorecard UI overhaul)
       if (inn.balls === 6) {
         inn.overs += 1;
         inn.balls = 0;
         bowler.overs += 1;
         bowler.balls = 0;
-<<<<<<< HEAD
-        // Always rotate strike at end of over
-=======
->>>>>>> d5fff15 (feat: chain button, edit mode, ball history, scorecard UI overhaul)
         if (nonStrikerIdx !== -1) {
           inn.batsmen[strikerIdx].onStrike = !inn.batsmen[strikerIdx].onStrike;
           inn.batsmen[nonStrikerIdx].onStrike = !inn.batsmen[nonStrikerIdx].onStrike;
         }
-<<<<<<< HEAD
-        inn.currentBowlerIndex = -1; // needs new bowler
-=======
         inn.currentBowlerIndex = -1;
->>>>>>> d5fff15 (feat: chain button, edit mode, ball history, scorecard UI overhaul)
       }
       break;
     }
@@ -168,10 +148,6 @@ export function applyBallEvent(
       bowler.runs += 1;
       bowler.wides += 1;
       inn.ballLog.push('wd');
-<<<<<<< HEAD
-      // Ball NOT counted toward over
-=======
->>>>>>> d5fff15 (feat: chain button, edit mode, ball history, scorecard UI overhaul)
       break;
     }
 
@@ -187,11 +163,6 @@ export function applyBallEvent(
       bowler.runs += 1 + r;
       bowler.noBalls += 1;
       inn.ballLog.push(r > 0 ? `nb+${r}` : 'nb');
-<<<<<<< HEAD
-      // Ball NOT counted toward over
-      // Strike rotation on odd bat runs
-=======
->>>>>>> d5fff15 (feat: chain button, edit mode, ball history, scorecard UI overhaul)
       if (r % 2 !== 0 && nonStrikerIdx !== -1) {
         inn.batsmen[strikerIdx].onStrike = false;
         inn.batsmen[nonStrikerIdx].onStrike = true;
@@ -207,20 +178,12 @@ export function applyBallEvent(
         inn.batsmen[strikerIdx].runs += r;
         if (r === 4) inn.batsmen[strikerIdx].fours += 1;
         if (r === 6) inn.batsmen[strikerIdx].sixes += 1;
-<<<<<<< HEAD
-        // Strike rotation before wicket if odd runs (batsman crossed)
-=======
->>>>>>> d5fff15 (feat: chain button, edit mode, ball history, scorecard UI overhaul)
         if (r % 2 !== 0 && nonStrikerIdx !== -1) {
           inn.batsmen[strikerIdx].onStrike = false;
           inn.batsmen[nonStrikerIdx].onStrike = true;
         }
       }
 
-<<<<<<< HEAD
-      // Dismiss the striker
-=======
->>>>>>> d5fff15 (feat: chain button, edit mode, ball history, scorecard UI overhaul)
       inn.batsmen[strikerIdx].balls += 1;
       inn.batsmen[strikerIdx].isOut = true;
       inn.batsmen[strikerIdx].dismissal = event.dismissal || 'Out';
@@ -235,21 +198,12 @@ export function applyBallEvent(
 
       inn.balls += 1;
 
-<<<<<<< HEAD
-      // End of over on wicket ball
-=======
->>>>>>> d5fff15 (feat: chain button, edit mode, ball history, scorecard UI overhaul)
       if (inn.balls === 6) {
         inn.overs += 1;
         inn.balls = 0;
         bowler.overs += 1;
         bowler.balls = 0;
         inn.currentBowlerIndex = -1;
-<<<<<<< HEAD
-        // Per cricket rules: non-striker faces next over.
-        // New batsman (coming in via add_batsman) will be at non-strike end.
-=======
->>>>>>> d5fff15 (feat: chain button, edit mode, ball history, scorecard UI overhaul)
         if (nonStrikerIdx !== -1) {
           inn.batsmen[nonStrikerIdx].onStrike = true;
         }
@@ -258,21 +212,6 @@ export function applyBallEvent(
     }
   }
 
-<<<<<<< HEAD
-  // ── Check innings completion ──────────────────────────────────────────────
-
-  // All 10 wickets down
-  if (inn.wickets >= 10) {
-    inn.isComplete = true;
-  }
-  // Overs complete
-  else if (totalBallsBowled(inn.overs, inn.balls) >= maxOvers * 6) {
-    inn.isComplete = true;
-  }
-  // Target reached (2nd innings win)
-  else if (inn.target !== undefined && inn.runs >= inn.target) {
-    inn.isComplete = true;
-=======
   if (inn.wickets >= 10) {
     inn.isComplete = true;
   } else if (totalBallsBowled(inn.overs, inn.balls) >= maxOvers * 6) {
@@ -330,7 +269,6 @@ export function replayInningsFromLog(
     inn = applyBallEvent(inn, event, maxOvers);
     // override the auto-generated ballLog entry so it matches our provided log
     inn.ballLog[inn.ballLog.length - 1] = logEntry;
->>>>>>> d5fff15 (feat: chain button, edit mode, ball history, scorecard UI overhaul)
   }
 
   return inn;
@@ -366,8 +304,4 @@ export function getRequiredRunRate(
   const needed = target - currentRuns;
   if (needed <= 0) return '0.00';
   return ((needed / ballsRemaining) * 6).toFixed(2);
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> d5fff15 (feat: chain button, edit mode, ball history, scorecard UI overhaul)
