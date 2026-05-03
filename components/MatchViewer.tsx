@@ -64,9 +64,7 @@ function BallHistory({ ballLog }: { ballLog: string[] }) {
   if (overs.length === 0) return null;
 
   const displayOvers = expanded ? overs : overs.slice(-2);
-  const currentOver = overs[overs.length - 1];
 
-  // Over run total
   function overTotal(balls: string[]) {
     return balls.reduce((sum, b) => {
       if (b === 'W') return sum;
@@ -241,7 +239,7 @@ function InningsCard({ inn, matchOvers, label, isCurrentInnings }: {
           </div>
         </div>
 
-        {/* ── Full ball history ── */}
+        {/* Ball history */}
         <BallHistory ballLog={inn.ballLog} />
       </div>
 
@@ -322,7 +320,7 @@ function HeroScore({ match, inn, isLive }: { match: Match; inn: Innings | undefi
       <div className="relative px-6 py-6">
         {/* Teams header */}
         <div className="flex items-center justify-center gap-4 mb-5">
-          <div className={`text-center flex-1 ${ci === 0 && match.status === 'live' ? '' : ''}`}>
+          <div className="text-center flex-1">
             <div className="text-gray-400 text-xs font-mono uppercase tracking-wider mb-1">
               {inn0?.battingTeam || match.team1}
             </div>
@@ -406,6 +404,7 @@ function HeroScore({ match, inn, isLive }: { match: Match; inn: Innings | undefi
 export default function MatchPage({ matchId }: { matchId: string }) {
   const [match, setMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeInnings, setActiveInnings] = useState<0 | 1>(0);
   const [sseStatus, setSseStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -464,6 +463,9 @@ export default function MatchPage({ matchId }: { matchId: string }) {
   const isLive = match.status === 'live';
   const currentInn = (rawInnings[match.currentInnings] != null && typeof rawInnings[match.currentInnings] === 'object')
     ? rawInnings[match.currentInnings] as Innings : undefined;
+
+  // Auto-switch to live innings tab
+  const displayInnings = activeInnings;
 
   return (
     <div className="min-h-screen bg-gray-950">
@@ -537,24 +539,68 @@ export default function MatchPage({ matchId }: { matchId: string }) {
           </div>
         )}
 
-        {/* Innings cards */}
-        <div className="grid gap-5">
-          {inn0 && (
-            <InningsCard inn={inn0} matchOvers={overs}
-              label={`1st Innings — ${inn0.battingTeam}`}
-              isCurrentInnings={match.currentInnings === 0 && isLive} />
-          )}
-          {inn1 && (
-            <InningsCard inn={inn1} matchOvers={overs}
-              label={`2nd Innings — ${inn1.battingTeam}`}
-              isCurrentInnings={match.currentInnings === 1 && isLive} />
-          )}
-          {match.status === 'completed' && !inn0 && !inn1 && (
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-10 text-center">
-              <div className="text-gray-600 font-mono text-sm">Scorecard not available</div>
+        {/* ── Innings tab toggle + card ── */}
+        {(inn0 || inn1) && (
+          <div>
+            {/* Tab bar */}
+            <div className="flex rounded-xl overflow-hidden border border-gray-800 mb-4">
+              {([inn0, inn1] as (Innings | undefined)[]).map((inn, idx) => {
+                if (!inn) return null;
+                const isActive = displayInnings === idx;
+                const isLiveTab = isLive && match.currentInnings === idx;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveInnings(idx as 0 | 1)}
+                    className={`flex-1 py-3 px-4 text-sm font-mono font-semibold transition-all relative
+                      ${isActive
+                        ? 'bg-gray-800 text-white'
+                        : 'bg-gray-900 text-gray-500 hover:text-gray-300 hover:bg-gray-800/50'
+                      }`}
+                  >
+                    {/* Active underline */}
+                    {isActive && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-500 rounded-full" />
+                    )}
+                    <span className="flex items-center justify-center gap-2">
+                      {inn.battingTeam}
+                      <span className={`text-xs font-normal ${isActive ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {inn.runs}/{inn.wickets}
+                      </span>
+                      {isLiveTab && (
+                        <span className="live-dot w-1.5 h-1.5 bg-green-400 rounded-full inline-block" />
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          )}
-        </div>
+
+            {/* Active innings card */}
+            {displayInnings === 0 && inn0 && (
+              <InningsCard
+                inn={inn0}
+                matchOvers={overs}
+                label={`1st Innings — ${inn0.battingTeam}`}
+                isCurrentInnings={match.currentInnings === 0 && isLive}
+              />
+            )}
+            {displayInnings === 1 && inn1 && (
+              <InningsCard
+                inn={inn1}
+                matchOvers={overs}
+                label={`2nd Innings — ${inn1.battingTeam}`}
+                isCurrentInnings={match.currentInnings === 1 && isLive}
+              />
+            )}
+          </div>
+        )}
+
+        {match.status === 'completed' && !inn0 && !inn1 && (
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-10 text-center">
+            <div className="text-gray-600 font-mono text-sm">Scorecard not available</div>
+          </div>
+        )}
       </main>
     </div>
   );
