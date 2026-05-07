@@ -10,7 +10,7 @@ function getRunRate(runs: number, overs: number, balls: number): string {
   const total = overs * 6 + balls;
   if (total === 0) return '0.00';
   return ((runs / total) * 6).toFixed(2);
-}
+} 
 function getRequiredRunRate(target: number, runs: number, overs: number, balls: number, maxOvers: number): string {
   const bowled = overs * 6 + balls;
   const remaining = maxOvers * 6 - bowled;
