@@ -69,7 +69,7 @@ function MatchCard({ match }: { match: Match }) {
         )}
 
         <div className="mt-3 text-xs text-gray-600 font-mono">
-          {match.overs} overs · {new Date(match.createdAt).toLocaleDateString()}
+          {match.overs} overs · {new Date(match.createdAt).toLocaleDateString()} {new Date(match.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </div>
       </div>
     </Link>
