@@ -10,7 +10,7 @@ function getRunRate(runs: number, overs: number, balls: number): string {
   const total = overs * 6 + balls;
   if (total === 0) return '0.00';
   return ((runs / total) * 6).toFixed(2);
-} 
+}
 function getRequiredRunRate(target: number, runs: number, overs: number, balls: number, maxOvers: number): string {
   const bowled = overs * 6 + balls;
   const remaining = maxOvers * 6 - bowled;
@@ -172,7 +172,6 @@ function BowlerRow({ b, isCurrent }: { b: BowlerScore; isCurrent: boolean }) {
 function InningsCard({ inn, matchOvers, label, isCurrentInnings }: {
   inn: Innings; matchOvers: number; label: string; isCurrentInnings: boolean;
 }) {
-  const [showBowlers, setShowBowlers] = useState(false);
   const activeBatsmen = inn.batsmen.filter(b => !b.isOut);
   const outBatsmen = inn.batsmen.filter(b => b.isOut);
   const rr = getRunRate(inn.runs, inn.overs, inn.balls);
@@ -263,40 +262,25 @@ function InningsCard({ inn, matchOvers, label, isCurrentInnings }: {
         </table>
       </div>
 
-      {/* Bowlers (collapsible) */}
+      {/* Bowlers (always visible) */}
       <div className="px-5 py-3">
-        <button onClick={() => setShowBowlers(v => !v)}
-          className="flex items-center justify-between w-full text-left">
-          <span className="text-[10px] text-gray-600 font-mono uppercase tracking-wider">Bowling</span>
-          <span className="text-gray-600 text-xs">{showBowlers ? '▲' : '▼'}</span>
-        </button>
-        {showBowlers && (
-          <table className="w-full mt-2">
-            <thead>
-              <tr className="text-[10px] text-gray-600 font-mono uppercase tracking-wider">
-                <th className="text-left pb-2">Bowler</th>
-                <th className="pb-2 text-center">O</th>
-                <th className="pb-2 text-center">R</th>
-                <th className="pb-2 text-center text-red-700">W</th>
-                <th className="pb-2 text-center">Eco</th>
-              </tr>
-            </thead>
-            <tbody>
-              {inn.bowlers.map((b, i) => (
-                <BowlerRow key={b.name + i} b={b} isCurrent={i === inn.currentBowlerIndex} />
-              ))}
-            </tbody>
-          </table>
-        )}
-        {!showBowlers && (
-          <div className="flex gap-3 mt-2 overflow-x-auto">
+        <span className="text-[10px] text-gray-600 font-mono uppercase tracking-wider">Bowling</span>
+        <table className="w-full mt-2">
+          <thead>
+            <tr className="text-[10px] text-gray-600 font-mono uppercase tracking-wider">
+              <th className="text-left pb-2">Bowler</th>
+              <th className="pb-2 text-center">O</th>
+              <th className="pb-2 text-center">R</th>
+              <th className="pb-2 text-center text-red-700">W</th>
+              <th className="pb-2 text-center">Eco</th>
+            </tr>
+          </thead>
+          <tbody>
             {inn.bowlers.map((b, i) => (
-              <div key={i} className={`shrink-0 text-xs font-mono ${i === inn.currentBowlerIndex ? 'text-amber-400' : 'text-gray-500'}`}>
-                {b.name}: {b.wickets}/{b.runs}
-              </div>
+              <BowlerRow key={b.name + i} b={b} isCurrent={i === inn.currentBowlerIndex} />
             ))}
-          </div>
-        )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -464,7 +448,6 @@ export default function MatchPage({ matchId }: { matchId: string }) {
   const currentInn = (rawInnings[match.currentInnings] != null && typeof rawInnings[match.currentInnings] === 'object')
     ? rawInnings[match.currentInnings] as Innings : undefined;
 
-  // Auto-switch to live innings tab
   const displayInnings = activeInnings;
 
   return (
@@ -558,7 +541,6 @@ export default function MatchPage({ matchId }: { matchId: string }) {
                         : 'bg-gray-900 text-gray-500 hover:text-gray-300 hover:bg-gray-800/50'
                       }`}
                   >
-                    {/* Active underline */}
                     {isActive && (
                       <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-500 rounded-full" />
                     )}
